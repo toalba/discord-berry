@@ -1,15 +1,12 @@
 # This example requires the 'message_content' intent.
 
-import asyncio
 import discord
 import json
 import random
 from discord import ui
 from discord import app_commands
-from discord.ext.commands import CheckFailure
 from discord.ext import commands
 import uuid
-import time
 
 import os
 from dotenv import load_dotenv
