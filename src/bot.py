@@ -15,16 +15,29 @@ load_dotenv()
 MY_GUILD = discord.Object(id=os.getenv('DC-GUILD'))  # replace with your guild id
 
 
-class Blarry(discord.Client):
+class Blarry(discord.ext.commands.Bot):
     def __init__(self, *, intents: discord.Intents):
-        super().__init__(intents=intents)
-        self.tree = app_commands.CommandTree(self)
-        self.commands = commands
+        super().__init__(intents=intents, command_prefix = "?")
+        self.pick_bans = []
 
     async def setup_hook(self):
         self.tree.copy_global_to(guild=MY_GUILD)
         await self.tree.sync(guild=MY_GUILD)
 
+    def add_pb(self, pb):
+        self.pick_bans.append(pb)
+    
+    async def remove_pb(self, pb_uid):
+        pb = next((obj for obj in self.pick_bans if str(obj.uid) == pb_uid), None)
+        if pb is not None:
+            await pb.rep_a_msg.delete()
+            await pb.rep_a_view.delete()
+            await pb.rep_b_msg.delete()
+            await pb.rep_b_view.delete()
+            await pb.interaction.delete_original_response()
+            self.pick_bans.remove(pb)
+            del pb
+            print('Pick&Ban removed succesfully')
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -54,8 +67,15 @@ async def on_message(message):
 async def pick_ban(interaction: discord.Interaction, rep_a: discord.Member, rep_b: discord.Member):
     select = ui.Select(options=[discord.SelectOption(label='P&B')])
     pb = PickandBan(rep_a,rep_b, interaction)
+    client.add_pb(pb)
     await pb.start_rep_conversation()
     await interaction.response.send_message(embed=pb.embed)
+
+@client.tree.command()
+#@app_commands.checks.has_role(1013754809494556673)
+async def remove_pb(interaction: discord.Interaction, uuid: str):
+    await client.remove_pb(uuid)
+    await interaction.response.send_message('Deleted')
 
 @pick_ban.error
 async def pick_ban_error(interaction: discord.Interaction, error):
@@ -75,7 +95,7 @@ class PickandBan():
         self.rep_b_view = None
         self.team_a, self.team_b = map(self.get_clantag, (rep_a.nick, rep_b.nick))
         self.interaction = interaction
-        self.embed = PBEmbed(title=f'{self.team_a} vs {self.team_b}')
+        self.embed = PBEmbed(title=f'{self.team_a} vs {self.team_b}',description=self.uid)
         self.banned_maps = {
             self.team_a: None,
             self.team_b: None
