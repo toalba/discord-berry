@@ -95,7 +95,7 @@ async def pick_ban(
     pb = PickandBan(rep_a, rep_b, interaction, stage.value)
     client.add_pb(pb)
     await pb.start_rep_conversation()
-    await interaction.response.send_message("Pick&Ban started", ephemeral=True)
+    await interaction.response.send_message("Pick&Ban started", embed=pb.embed)
     await logger.log(
         f"Pick&Ban started by {interaction.user} between {rep_a.nick} and {rep_b.nick}"
     )
@@ -104,7 +104,7 @@ async def pick_ban(
 @pick_ban.error
 async def pick_ban_error(interaction: discord.Interaction, error):
     await interaction.response.send_message("You are not blue enough to do this")
-    logger.log(
+    await logger.log(
         f"Error: {error} \n User: {interaction.user} \n Command: {interaction.command.name} \n Guild: {interaction.guild.name} \n Channel: {interaction.channel.name}"
     )
 
@@ -120,7 +120,7 @@ async def remove_pb(interaction: discord.Interaction, uuid: str):
 async def test(
     interaction: discord.Interaction, rep_a: discord.Member, rep_b: discord.Member
 ):
-    pb = PickandBan(rep_a, rep_b, interaction)
+    pb = PickandBan(rep_a, rep_b, interaction, stage=1)  # Default stage value set to 1
     pb.rep_a_view = await pb.rep_a.send(content="Start Ship ban", view=ShipbanView(pb))
     await interaction.response.send_message("Pick&Ban started", ephemeral=True)
     await logger.log(
