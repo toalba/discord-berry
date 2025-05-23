@@ -37,7 +37,13 @@ class Blarry(discord.ext.commands.Bot):
             await pb.interaction.delete_original_response()
             self.pick_bans.remove(pb)
             del pb
-            print("Pick&Ban removed succesfully")
+            logger.log(
+                f"Pick&Ban removed by {pb.interaction.user} between {pb.rep_a.nick} and {pb.rep_b.nick}"
+            )
+        else:
+            logger.log(
+                f"Pick&Ban not found by {pb.interaction.user} between {pb.rep_a.nick} and {pb.rep_b.nick}"
+            )
 
 
 intents = discord.Intents.default()
@@ -70,22 +76,21 @@ def check_rep_format(rep_a: discord.Member, rep_b: discord.Member) -> bool:
 
 
 @client.tree.command()
-# @app_commands.checks.has_role(1013754809494556673)
+@app_commands.checks.has_role(1375406056498401371)
 @app_commands.describe(
     rep_a="Team Captain A", rep_b="Team Captain B", stage="Stage of the Tournament"
 )
 @app_commands.choices(
     stage=[
-        app_commands.Choice(name="2nd Group Stage", value=1),
-        app_commands.Choice(name="KO Stage", value=2),
-        app_commands.Choice(name="Finals", value=3),
+        app_commands.Choice(name="Swiss", value=2),
+        app_commands.Choice(name="KO Stage", value=3),
     ]
 )
 async def pick_ban(
     interaction: discord.Interaction,
     rep_a: discord.Member,
     rep_b: discord.Member,
-    stage: app_commands.Choice[int]
+    stage: app_commands.Choice[int],
 ):
     if check_rep_format(rep_a, rep_b):
         await interaction.response.send_message(
@@ -128,4 +133,4 @@ async def test(
     )
 
 
-client.run(os.getenv("TOKEN"))
+client.run("")

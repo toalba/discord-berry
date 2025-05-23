@@ -12,7 +12,13 @@ logger = WebhookLogger(os.getenv("WEBHOOK"))
 
 class PickandBan:
 
-    def __init__(self, rep_a: Member, rep_b: Member, interaction: Interaction, tournamentstage: int):
+    def __init__(
+        self,
+        rep_a: Member,
+        rep_b: Member,
+        interaction: Interaction,
+        tournamentstage: int,
+    ):
         self.uid = uuid.uuid4()
         self.map_pool = None
         self.rep_a = rep_a
@@ -53,7 +59,9 @@ class PickandBan:
             )
         edit_embeds(self.embed, "Picked Maps", picked_map)
         banned_ships_str = "None"
-        if all(len(ships) >= 2 for ships in self.banned_ships.values()):
+        if all(
+            len(ships) >= self.tournamentstage for ships in self.banned_ships.values()
+        ):  # len of ship has to be variable later
             banned_ships_str = "\n".join(
                 f"**{team}**: {', '.join(ships)}"
                 for team, ships in self.banned_ships.items()
@@ -118,10 +126,7 @@ class MapPickSelect(ui.Select):
         with open("mappool.json", "r") as f:
             maps = json.load(f)
             for i in maps:
-                if (
-                    i != pb.banned_maps[pb.team_a]
-                    and i != pb.banned_maps[pb.team_b]
-                ):
+                if i != pb.banned_maps[pb.team_a] and i != pb.banned_maps[pb.team_b]:
                     options.append(SelectOption(label=i, value=i))
         super().__init__(options=options)
         self.pb = pb
@@ -132,7 +137,7 @@ class MapPickSelect(ui.Select):
             await self.pb.rep_a_view.delete()
             await interaction.response.send_message(f"You picked {self.values[0]}")
             await logger.log(
-                f"{self.pb.team_a} picked {self.pb.picked_maps[self.pb.team_a]}"
+                f"{self.pb.uid}: {self.pb.team_a} picked {self.pb.picked_maps[self.pb.team_a]}"
             )
             sp = SpawnSelect(self.pb, self.values[0])
             self.pb.rep_b_view = await self.pb.rep_b.send(
@@ -143,7 +148,7 @@ class MapPickSelect(ui.Select):
             await self.pb.rep_b_view.delete()
             await interaction.response.send_message(f"You picked {self.values[0]}")
             await logger.log(
-                f"{self.pb.team_b} picked {self.pb.picked_maps[self.pb.team_b]}"
+                f"{self.pb.uid}: {self.pb.team_b} picked {self.pb.picked_maps[self.pb.team_b]}"
             )
             sp = SpawnSelect(self.pb, self.values[0])
             self.pb.rep_a_view = await self.pb.rep_a.send(
@@ -229,14 +234,14 @@ class ShipbanModal(ui.Modal):
                 self.pb.banned_ships[self.pb.team_a].append(i.value)
             await self.pb.rep_a_view.delete()
             await logger.log(
-                f"{self.pb.team_a} banned {self.pb.banned_ships[self.pb.team_a]}"
+                f"{self.pb.uid}: {self.pb.team_a} banned {self.pb.banned_ships[self.pb.team_a]}"
             )
         if interaction.user.name == self.pb.rep_b.name:
             for i in self.children:
                 self.pb.banned_ships[self.pb.team_b].append(i.value)
             await self.pb.rep_b_view.delete()
             await logger.log(
-                f"{self.pb.team_b} banned {self.pb.banned_ships[self.pb.team_b]}"
+                f"{self.pb.uid}: {self.pb.team_b} banned {self.pb.banned_ships[self.pb.team_b]}"
             )
         await interaction.response.send_message(f"You banned {self.pb.banned_ships}")
         await self.pb.update_embed()
