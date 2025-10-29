@@ -1,0 +1,11 @@
+[Unit]
+ Description=My Python Script
+
+[Service]
+ User=root
+ WorkingDirectory=/root/discord-berry/
+ ExecStart=/root/discord-berry/venv/bin/python3 /root/discord-berry/src/bot.py
+ Restart=always
+
+[Install]
+ WantedBy=multi-user.target
