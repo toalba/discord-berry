@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MY_GUILD = discord.Object(id=os.getenv("DC-GUILD"))  # type: ignore # replace with your guild id
 logger = WebhookLogger(os.getenv("WEBHOOK"))
 
 
@@ -21,8 +20,10 @@ class Blarry(discord.ext.commands.Bot):
         self.pick_bans = []
 
     async def setup_hook(self):
-        self.tree.copy_global_to(guild=MY_GUILD)
-        await self.tree.sync(guild=MY_GUILD)
+        # Sync commands globally to work on all servers
+        # Note: Global command sync can take up to 1 hour to propagate
+        await self.tree.sync()
+        print("Commands synced globally")
 
     def add_pb(self, pb):
         self.pick_bans.append(pb)
@@ -108,7 +109,7 @@ def check_rep_format(rep_a: discord.Member, rep_b: discord.Member) -> bool:
 
 
 @client.tree.command()
-@app_commands.checks.has_role(1375423331720757289)
+@app_commands.default_permissions(manage_guild=True)
 @app_commands.describe(
     rep_a="Team Captain A", rep_b="Team Captain B", stage="Stage of the Tournament"
 )
@@ -141,14 +142,17 @@ async def pick_ban(
 
 @pick_ban.error
 async def pick_ban_error(interaction: discord.Interaction, error):
-    await interaction.response.send_message("You are not blue enough to do this")
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("You need 'Manage Server' permission to use this command", ephemeral=True)
+    else:
+        await interaction.response.send_message("An error occurred while processing the command", ephemeral=True)
     await logger.log(
         f"Error: {error} \n User: {interaction.user} \n Command: {interaction.command.name} \n Guild: {interaction.guild.name} \n Channel: {interaction.channel.name}"  # type: ignore
     )
 
 
 @client.tree.command()
-@app_commands.checks.has_role(1375423331720757289)
+@app_commands.default_permissions(manage_guild=True)
 async def remove_pb(interaction: discord.Interaction, uuid: str):
     await client.remove_pb(uuid)
     await interaction.response.send_message("Deleted")
@@ -156,7 +160,10 @@ async def remove_pb(interaction: discord.Interaction, uuid: str):
 
 @remove_pb.error
 async def remove_pb_error(interaction: discord.Interaction, error):
-    await interaction.response.send_message("You are not blue enough to do this")
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("You need 'Manage Server' permission to use this command", ephemeral=True)
+    else:
+        await interaction.response.send_message("An error occurred while processing the command", ephemeral=True)
     await logger.log(
         f"Error: {error} \n User: {interaction.user} \n Command: {interaction.command.name} \n Guild: {interaction.guild.name} \n Channel: {interaction.channel.name}"  # type: ignore
     )
