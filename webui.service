@@ -1,0 +1,13 @@
+[Unit]
+Description=Discord-Berry Web Interface
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/discord-berry/
+ExecStart=/root/discord-berry/venv/bin/python3 /root/discord-berry/webui.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

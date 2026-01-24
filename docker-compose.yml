@@ -1,0 +1,36 @@
+services:
+  # Discord Bot
+  bot:
+    build: .
+    container_name: discord-berry-bot
+    restart: unless-stopped
+    command: python src/bot.py
+    volumes:
+      - ./tournament_config.json:/app/tournament_config.json
+      - ./mappool.json:/app/mappool.json
+      - ./.env:/app/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - berry-network
+
+  # Web Interface
+  webui:
+    build: .
+    container_name: discord-berry-webui
+    restart: unless-stopped
+    command: python webui.py
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./tournament_config.json:/app/tournament_config.json
+      - ./templates:/app/templates
+      - ./.env:/app/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - berry-network
+
+networks:
+  berry-network:
+    driver: bridge

@@ -11,11 +11,26 @@ import datetime
 load_dotenv()
 logger = WebhookLogger(os.getenv("WEBHOOK"))
 
-ONLY_MAPS = True
+def load_tournament_config():
+    """Load tournament configuration from JSON file."""
+    config_file = "tournament_config.json"
+    if os.path.exists(config_file):
+        with open(config_file, "r") as f:
+            return json.load(f)
+    # Fallback to default config
+    return {"tournaments": [{"id": "default", "name": "Default", "mappool": [], "stages": {}}]}
 
-# Load map pool once at module level
-with open("mappool.json", "r") as f:
-    MAP_POOL = json.load(f)
+def get_tournament_by_id(tournament_id):
+    """Get a specific tournament configuration by ID."""
+    config = load_tournament_config()
+    return next((t for t in config["tournaments"] if t["id"] == tournament_id), None)
+
+# Load map pool once at module level (fallback for compatibility)
+if os.path.exists("mappool.json"):
+    with open("mappool.json", "r") as f:
+        MAP_POOL = json.load(f)
+else:
+    MAP_POOL = []
 
 
 class PickandBan:
@@ -25,10 +40,23 @@ class PickandBan:
         rep_a: Member,
         rep_b: Member,
         interaction: Interaction,
-        tournamentstage: int,
+        tournament_id: str,
+        stage_name: str,
     ):
         self.uid = uuid.uuid4()
-        self.map_pool = MAP_POOL
+        
+        # Load tournament configuration
+        self.tournament = get_tournament_by_id(tournament_id)
+        if not self.tournament:
+            raise ValueError(f"Tournament {tournament_id} not found")
+        
+        if stage_name not in self.tournament["stages"]:
+            raise ValueError(f"Stage {stage_name} not found in tournament {tournament_id}")
+        
+        self.stage_config = self.tournament["stages"][stage_name]
+        self.stage_name = stage_name
+        self.map_pool = self.tournament["mappool"]
+        
         self.rep_a = rep_a
         self.rep_b = rep_b
         self.rep_a_msg = None
@@ -38,22 +66,25 @@ class PickandBan:
         self.team_a, self.team_b = map(self.get_clantag, (rep_a.nick, rep_b.nick))
         self.interaction = interaction
         self.embed = PBEmbed(
-            title=f"{self.team_a} vs {self.team_b}", description=self.uid
+            title=f"{self.team_a} vs {self.team_b}", 
+            description=f"{self.uid}\n**Stage:** {stage_name}",
+            ship_bans=self.stage_config["ship_bans"]
         )
-        self.banned_maps = {self.team_a: None, self.team_b: None}
+        self.banned_maps = {self.team_a: [], self.team_b: []}
         self.picked_maps = {self.team_a: [], self.team_b: []}
         self.banned_ships = {self.team_a: [], self.team_b: []}
         self.stage = 0
-        self.tournamentstage = tournamentstage
-        self.current_picker = self.rep_a.id  # First map pick by rep A
+        self.current_picker = self.rep_a.id
         self.decider_map = ""
 
     async def update_embed(self):
-        if all(self.banned_maps.values()):
+        # Handle Map Bans
+        map_bans_required = self.stage_config["map_bans"]
+        if map_bans_required > 0 and all(len(bans) >= map_bans_required for bans in self.banned_maps.values()):
             value = "\n".join(
-                f"{map_name} **{team}**" for team, map_name in self.banned_maps.items()
+                f"{', '.join(map_list)} **{team}**" for team, map_list in self.banned_maps.items() if map_list
             )
-            edit_embeds(self.embed, "Banned Maps", value)
+            edit_embeds(self.embed, "Banned Maps", value if value else "None")
             if self.stage == 0:
                 mp = MapPickSelect(self)
                 view = MapSelectView(mp)
@@ -62,6 +93,8 @@ class PickandBan:
                 except discord.HTTPException as e:
                     await logger.log(f"Error sending view to {self.rep_a.nick}: {e}")
                 self.stage = 1
+        
+        # Handle Map Picks
         picked_map = ""
         for maps in self.picked_maps.values():
             picked_map += "".join(
@@ -70,10 +103,13 @@ class PickandBan:
                 if "map" in i
             )
         picked_map = picked_map + self.decider_map if self.decider_map else picked_map
-        edit_embeds(self.embed, "Picked Maps", picked_map)
+        edit_embeds(self.embed, "Picked Maps", picked_map if picked_map else "None")
+        
+        # Handle Ship Bans
+        ship_bans_required = self.stage_config["ship_bans"]
         banned_ships_str = "None"
-        if all(
-            len(ships) >= self.tournamentstage for ships in self.banned_ships.values()
+        if ship_bans_required > 0 and all(
+            len(ships) >= ship_bans_required for ships in self.banned_ships.values()
         ):
             banned_ships_str = "\n".join(
                 f"**{team}**: {', '.join(ships)}"
@@ -81,7 +117,8 @@ class PickandBan:
             )
             self.embed.color = Colour.brand_green()
             remove_embeds(self.embed, "Time until")
-        if not ONLY_MAPS:
+        
+        if ship_bans_required > 0:
             edit_embeds(self.embed, "Banned Ships", banned_ships_str)
         
         # Use gather with return_exceptions to prevent one failure from breaking all updates
@@ -100,7 +137,10 @@ class PickandBan:
 
     async def start_rep_conversation(self):
         try:
-            if self.tournamentstage == 2:
+            map_bans_required = self.stage_config["map_bans"]
+            
+            # If no map bans required, start with map picks
+            if map_bans_required == 0:
                 mp = MapPickSelect(self)
                 view = MapSelectView(mp)
                 # Send messages concurrently for better performance
@@ -127,6 +167,7 @@ class PickandBan:
                     await logger.log(f"Error sending view to rep_a: {results[2]}")
 
             else:
+                # Map bans required
                 view = MapbanView(self)
                 # Send messages concurrently for better performance
                 results = await asyncio.gather(
@@ -166,11 +207,13 @@ class PickandBan:
         return rep_name.split("[")[1].split("]")[0]
     
     def add_decider(self):
-        maps = ['Riposte','Ocean','Shards']
-        maps = [i for i in maps if i not in self.banned_maps.values()]
-        random_map = random.choice(maps)
+        tiebreaker_maps = self.stage_config.get("tiebreaker_maps", ["Riposte", "Ocean", "Shards"])
+        available_maps = [m for m in tiebreaker_maps if m not in [item for sublist in self.banned_maps.values() for item in sublist]]
+        if not available_maps:
+            available_maps = tiebreaker_maps  # Fallback if all banned
+        random_map = random.choice(available_maps)
         self.decider_map += f"**Decider Map**\n{random_map}, Alpha **({self.team_a})**\n"
-        if ONLY_MAPS:
+        if self.stage_config["ship_bans"] == 0:
             self.embed.color = Colour.brand_green()
 
 
@@ -196,13 +239,13 @@ class MapSelectView(ui.View):
 class MapbanSelect(ui.Select):
 
     def __init__(self, pb: PickandBan):
-        options = [SelectOption(label=i, value=i) for i in MAP_POOL]
+        options = [SelectOption(label=i, value=i) for i in pb.map_pool]
         super().__init__(options=options)
         self.pb = pb
 
     async def callback(self, interaction: Interaction):
         if interaction.user.id == self.pb.rep_a.id:
-            self.pb.banned_maps[self.pb.team_a] = self.values[0]
+            self.pb.banned_maps[self.pb.team_a].append(self.values[0])
             try:
                 await self.pb.rep_a_view.delete()
             except discord.NotFound:
@@ -210,7 +253,7 @@ class MapbanSelect(ui.Select):
             except discord.HTTPException as e:
                 await logger.log(f"Error deleting rep_a_view: {e}")
         elif interaction.user.id == self.pb.rep_b.id:
-            self.pb.banned_maps[self.pb.team_b] = self.values[0]
+            self.pb.banned_maps[self.pb.team_b].append(self.values[0])
             try:
                 await self.pb.rep_b_view.delete()
             except discord.NotFound:
@@ -225,10 +268,12 @@ class MapbanSelect(ui.Select):
 class MapPickSelect(ui.Select):
 
     def __init__(self, pb: PickandBan):
+        # Filter out all banned maps from both teams
+        banned = set(pb.banned_maps[pb.team_a] + pb.banned_maps[pb.team_b])
         options = [
             SelectOption(label=i, value=i)
-            for i in MAP_POOL
-            if i != pb.banned_maps[pb.team_a] and i != pb.banned_maps[pb.team_b]
+            for i in pb.map_pool
+            if i not in banned
         ]
         super().__init__(options=options)
         self.pb = pb
@@ -317,7 +362,9 @@ class SpawnSelect(ui.Select):
         await interaction.response.send_message(f"You picked {self.values[0]}")
 
         total_picks = len(self.pb.picked_maps[self.pb.team_a]) + len(self.pb.picked_maps[self.pb.team_b])
-        if total_picks < 2:
+        map_picks_required = self.pb.stage_config["map_picks"] * 2  # 2 teams
+        
+        if total_picks < map_picks_required:
             next_picker = self.pb.rep_b if interaction.user.id == self.pb.rep_b.id else self.pb.rep_a
             next_picker_id = next_picker.id
             self.pb.current_picker = next_picker_id
@@ -329,12 +376,16 @@ class SpawnSelect(ui.Select):
             except discord.HTTPException as e:
                 await logger.log(f"Error sending map pick to {next_picker.nick}: {e}")
         else:
-            if self.pb.tournamentstage == 3:
+            # All map picks done
+            if self.pb.stage_config.get("has_tiebreaker", False):
                 self.pb.add_decider()
-            if ONLY_MAPS:
+            
+            ship_bans_required = self.pb.stage_config["ship_bans"]
+            if ship_bans_required == 0:
                 self.pb.embed.color = Colour.brand_green()
                 await self.pb.update_embed()
                 return
+            
             view_a = ShipbanView(self.pb)
             view_b = ShipbanView(self.pb)
             try:
@@ -355,7 +406,8 @@ class ShipbanModal(ui.Modal):
     def __init__(self, pb: PickandBan):
         super().__init__(title="Ship Ban")
         self.pb = pb
-        for i in range(self.pb.tournamentstage):
+        ship_bans_required = pb.stage_config["ship_bans"]
+        for i in range(ship_bans_required):
             self.add_item(
                 ui.TextInput(label=f"Ship {i+1}", placeholder="Enter Ship Name")
             )
@@ -416,6 +468,7 @@ class PBEmbed(Embed):
         url=None,
         description=None,
         timestamp=None,
+        ship_bans=0,
     ):
         
         super().__init__(
@@ -432,6 +485,6 @@ class PBEmbed(Embed):
         self.add_field(name="Time until", value=timer, inline=False)
         self.add_field(name="Banned Maps", value=None, inline=False)
         self.add_field(name="Picked Maps", value=None, inline=False)
-        if not ONLY_MAPS:
+        if ship_bans > 0:
             self.add_field(name="Banned Ships", value=None, inline=False)
         self.set_footer(text="Enterprise I Bot by Rias_prpr")
