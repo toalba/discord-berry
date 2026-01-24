@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tournament.name }} - Configuration</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { margin-bottom: 10px; color: #fff; }
+        h2 { margin: 30px 0 15px; color: #4a9eff; border-bottom: 2px solid #4a9eff; padding-bottom: 5px; }
+        .card {
+            background: #252525;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        .btn {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            margin-right: 10px;
+        }
+        .btn:hover { background: #357ab8; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
+        input, textarea, select {
+            background: #333;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+            margin: 5px 0;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            color: #bbb;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .map-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .map-tag {
+            background: #333;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .map-tag button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+        .stage-list { margin-top: 20px; }
+        .stage-item {
+            background: #2a2a2a;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #4a9eff;
+        }
+        .stage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .stage-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+        }
+        .stage-detail {
+            background: #333;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .back-link {
+            color: #4a9eff;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Zurück zur Übersicht</a>
+        
+        <h1>{{ tournament.name }}</h1>
+        <p style="color: #888; margin-bottom: 20px;">ID: {{ tournament.id }}</p>
+
+        <!-- Mappool Section -->
+        <div class="card">
+            <h2>🗺️ Mappool</h2>
+            <div class="map-list" id="mapList">
+                {% for map in tournament.mappool %}
+                <div class="map-tag">
+                    <span>{{ map }}</span>
+                    <button onclick="removeMap('{{ map }}')">×</button>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 20px;">
+                <input type="text" id="newMapInput" placeholder="Map-Name eingeben">
+                <button class="btn btn-success" onclick="addMap()">+ Map hinzufügen</button>
+            </div>
+        </div>
+
+        <!-- Stages Section -->
+        <div class="card">
+            <h2>⚔️ Stages</h2>
+            
+            <div class="stage-list" id="stageList">
+                {% for stage_name, stage_config in tournament.stages.items() %}
+                <div class="stage-item">
+                    <div class="stage-header">
+                        <h3>{{ stage_name }}</h3>
+                        <button class="btn btn-danger" onclick="deleteStage('{{ stage_name }}')">Löschen</button>
+                    </div>
+                    <div class="stage-details">
+                        <div class="stage-detail">
+                            <strong>Map Bans:</strong> {{ stage_config.map_bans }}
+                        </div>
+                        <div class="stage-detail">
+                            <strong>Map Picks:</strong> {{ stage_config.map_picks }}
+                        </div>
+                        <div class="stage-detail">
+                            <strong>Ship Bans:</strong> {{ stage_config.ship_bans }}
+                        </div>
+                        <div class="stage-detail">
+                            <strong>Tiebreaker:</strong> {{ 'Ja' if stage_config.has_tiebreaker else 'Nein' }}
+                        </div>
+                        {% if stage_config.has_tiebreaker and stage_config.tiebreaker_maps %}
+                        <div class="stage-detail" style="grid-column: 1 / -1;">
+                            <strong>Tiebreaker Maps:</strong> {{ stage_config.tiebreaker_maps | join(', ') }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h3 style="margin-top: 30px; color: #fff;">Neue Stage hinzufügen</h3>
+            <form id="stageForm" onsubmit="addStage(event)">
+                <div class="form-row">
+                    <div>
+                        <label>Stage Name</label>
+                        <input type="text" id="stageName" required>
+                    </div>
+                    <div>
+                        <label>Map Bans</label>
+                        <input type="number" id="mapBans" value="0" min="0">
+                    </div>
+                    <div>
+                        <label>Map Picks</label>
+                        <input type="number" id="mapPicks" value="1" min="0">
+                    </div>
+                    <div>
+                        <label>Ship Bans</label>
+                        <input type="number" id="shipBans" value="0" min="0">
+                    </div>
+                </div>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="hasTiebreaker" onchange="toggleTiebreaker()">
+                    <label for="hasTiebreaker" style="margin: 0;">Tiebreaker aktivieren</label>
+                </div>
+                <div id="tiebreakerSection" style="display: none; margin-top: 10px;">
+                    <label>Tiebreaker Maps (komma-separiert)</label>
+                    <input type="text" id="tiebreakerMaps" placeholder="z.B. Riposte, Ocean, Shards">
+                </div>
+                <button type="submit" class="btn btn-success" style="margin-top: 15px;">+ Stage hinzufügen</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <button class="btn btn-danger" onclick="deleteTournament()">Tournament löschen</button>
+        </div>
+    </div>
+
+    <script>
+        const tournamentId = '{{ tournament.id }}';
+
+        function addMap() {
+            const input = document.getElementById('newMapInput');
+            const mapName = input.value.trim();
+            if (!mapName) return;
+
+            fetch(`/api/tournament/${tournamentId}/mappool`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mappool: [...document.querySelectorAll('.map-tag span')].map(s => s.textContent).concat([mapName])
+                })
+            }).then(r => r.json()).then(() => {
+                location.reload();
+            });
+        }
+
+        function removeMap(mapName) {
+            const maps = [...document.querySelectorAll('.map-tag span')].map(s => s.textContent).filter(m => m !== mapName);
+            fetch(`/api/tournament/${tournamentId}/mappool`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mappool: maps})
+            }).then(r => r.json()).then(() => {
+                location.reload();
+            });
+        }
+
+        function toggleTiebreaker() {
+            const checkbox = document.getElementById('hasTiebreaker');
+            const section = document.getElementById('tiebreakerSection');
+            section.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        function addStage(event) {
+            event.preventDefault();
+            const hasTiebreaker = document.getElementById('hasTiebreaker').checked;
+            const tiebreakerMapsValue = document.getElementById('tiebreakerMaps').value;
+            const tiebreakerMaps = hasTiebreaker && tiebreakerMapsValue 
+                ? tiebreakerMapsValue.split(',').map(s => s.trim()).filter(s => s)
+                : [];
+
+            fetch(`/api/tournament/${tournamentId}/stage`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    stage_name: document.getElementById('stageName').value,
+                    map_bans: parseInt(document.getElementById('mapBans').value),
+                    map_picks: parseInt(document.getElementById('mapPicks').value),
+                    ship_bans: parseInt(document.getElementById('shipBans').value),
+                    has_tiebreaker: hasTiebreaker,
+                    tiebreaker_maps: tiebreakerMaps
+                })
+            }).then(r => r.json()).then(() => {
+                location.reload();
+            });
+        }
+
+        function deleteStage(stageName) {
+            if (!confirm(`Stage "${stageName}" wirklich löschen?`)) return;
+            fetch(`/api/tournament/${tournamentId}/stage/${encodeURIComponent(stageName)}`, {
+                method: 'DELETE'
+            }).then(r => r.json()).then(() => {
+                location.reload();
+            });
+        }
+
+        function deleteTournament() {
+            if (!confirm('Tournament wirklich löschen?')) return;
+            fetch(`/api/tournament/${tournamentId}`, {
+                method: 'DELETE'
+            }).then(r => r.json()).then(() => {
+                window.location.href = '/';
+            });
+        }
+    </script>
+</body>
+</html>

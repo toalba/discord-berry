@@ -11,3 +11,4 @@ propcache==0.3.0
 typing_extensions==4.12.2
 yarl==1.18.3
 python-dotenv==1.0.1
+Flask==3.1.0

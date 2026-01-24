@@ -1,0 +1,53 @@
+{
+  "tournaments": [
+    {
+      "id": "default",
+      "name": "Default Tournament",
+      "mappool": [
+        "Sleeping Giant",
+        "North",
+        "Islands of Ice",
+        "Warriors Path",
+        "Tears of the Desert",
+        "Shards",
+        "Riposte"
+      ],
+      "stages": {
+        "Group Stage": {
+          "map_bans": 0,
+          "map_picks": 1,
+          "ship_bans": 2,
+          "has_tiebreaker": false,
+          "tiebreaker_maps": []
+        },
+        "KO Stage": {
+          "map_bans": 1,
+          "map_picks": 1,
+          "ship_bans": 3,
+          "has_tiebreaker": true,
+          "tiebreaker_maps": [
+            "Riposte",
+            "Shards",
+            "Ocean"
+          ]
+        }
+      }
+    },
+    {
+      "id": "WOFB",
+      "name": "WOF Bravo",
+      "mappool": [
+        "North"
+      ],
+      "stages": {
+        "Groups": {
+          "map_bans": 1,
+          "map_picks": 1,
+          "ship_bans": 0,
+          "has_tiebreaker": true,
+          "tiebreaker_maps": []
+        }
+      }
+    }
+  ]
+}

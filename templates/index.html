@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Configuration</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { margin-bottom: 30px; color: #fff; }
+        h2 { margin: 20px 0 10px; color: #4a9eff; }
+        .card {
+            background: #252525;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        .tournament-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .tournament-card {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #333;
+        }
+        .tournament-card:hover {
+            border-color: #4a9eff;
+            transform: translateY(-2px);
+        }
+        .tournament-card h3 { color: #fff; margin-bottom: 10px; }
+        .tournament-card p { color: #888; font-size: 14px; }
+        .btn {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { background: #357ab8; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-secondary { background: #555; }
+        .btn-secondary:hover { background: #444; }
+        a { color: #4a9eff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 Tournament Configuration</h1>
+        
+        <div class="card">
+            <a href="{{ url_for('new_tournament') }}" class="btn">+ Neues Tournament erstellen</a>
+        </div>
+
+        {% if tournaments %}
+        <div class="tournament-list">
+            {% for tournament in tournaments %}
+            <div class="tournament-card" onclick="window.location.href='{{ url_for('view_tournament', tournament_id=tournament.id) }}'">
+                <h3>{{ tournament.name }}</h3>
+                <p><strong>ID:</strong> {{ tournament.id }}</p>
+                <p><strong>Maps:</strong> {{ tournament.mappool|length }}</p>
+                <p><strong>Stages:</strong> {{ tournament.stages|length }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card">
+            <p>Keine Tournaments vorhanden. Erstelle ein neues Tournament.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
